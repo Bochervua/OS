@@ -1,9 +1,9 @@
-# Loading the file organizations.json
+# Loading the file 1.json
 
 - Transposing the matrix.
 - Renaming the parameter 'ip' to 'ip_org' for easier merging with another dataframe
 
-# Loading the file fingerprints_with_os_checked.json
+# Loading the file 2.json
 
 - Copying into a new object to avoid altering the originally loaded data.
 
