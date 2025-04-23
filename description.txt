@@ -1,0 +1,39 @@
+
+-- Загрузка файла scamalytics_rechecked.json
+
+1.Транспонированрие матртицы
+2.Переименование с параметра 'ip' на 'ip_org' для удобной работы с объединением другого фрейма
+
+-- Загрузка файла fingerprints_with_os_checked.json
+
+1.Копирование в новый объект,чтобы не изменить изначальные загруженные данные
+2.Удаление дубликатов по полю 'ip'
+3.Объединение двух фреймов по ключу 'ip' с тем,чтобы определить название организации
+4.В поле 'organization' есть записи 'n/a',поэтому происходит замена этого значения на значение поля 'isp'
+5.Достаем из поля 'os_prediction' название ОС и сохраняем в новой колонке 'os'
+6.Тоже самое ис полем 'user_agent' и сохраняем в новой колонке 'u_a_os'
+7.Оставляем параметры 'organization','ip','os','u_a_os','tls','tcpip','http2'
+8.Удаляем дубликаты по полю 'organization'
+9.Фильтруем выборку ,оставляя только те строки ,в которых предсказанная ОС соответствует юрер агента ОС,для того чтобы увеличить вероятность точного предсказания.
+10.Извлекаем из записей 'tls','tcpip','http2' предположительно важную информацию.
+	из 'tls'-> chiphers : [TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 
+			       TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, 
+			       TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 
+    			       TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_RSA_WITH_AES_128_GCM_SHA256, TLS_RSA_WITH_AES_256_GCM_SHA384, 
+			       TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_AES_256_CBC_SHA]
+	и отдельно ja3_hash : 'c279b0189edb9269da7bc43dea5e0c36'
+	
+	из 'tcpip'-> 'cap_length, 74, dst_port, 443, src_port, 56278, ip, id, 54072, tos, 72, ttl, 45, ip_version, 4, dst_ip, 172.86.96.108, src_ip, 165.227.55.199, 
+	              tcp, checksum, 57223, mss, 1460, options, MSS:1460,SACKPermitted:,Timestamps:767277104/0,NOP:,WindowScale:7, options_order, MSS,SACKPermitted,Timestamps,NOP,
+		      WindowScale, seq, 3349149692, window, 64240 '
+	
+	из 'http2'-> 'settings': [HEADER_TABLE_SIZE = 65536, INITIAL_WINDOW_SIZE = 131072, MAX_FRAME_SIZE = 16384]
+11.Создание нового поля 'text' куда помещается конкатенированная строка из всех 4-х параметров.
+12.Удаление лишних пробелов и запятых в строке для дальнейшей векторизации.
+
+-- Обучение модели
+
+1.Для обучения модели использовался XGBClassifier,так в данных реалиях показал себя лучше ,чем LogisticRegression,SVM ,RandomForest
+2.Для кодирования строки использовался TF-IDF,для целевой переменной LabelEncoder
+3.Из изначально имеющихся 7448 данных конечня выборка сформировалась с 879 наблюдениями.Из них почти 81% приходится на ОС Widows.Поэтому возможна большая вероятность смещения оценки на 
+такой малой выборке и неравномерном распределении 
